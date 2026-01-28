@@ -4,8 +4,8 @@ import { useDebouncedCallback } from 'use-debounce';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
-import { LocalStorageNapkinService } from '../backend/LocalStorageNapkinService';
-import type { Napkin as NapkinType } from '../types';
+import { NapkinService } from '../backend/NapkinService';
+import { useAuth } from '../contexts/AuthContext';
 import { Bold, Italic, Type, MoreHorizontal, Trash2 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useEditorState } from '@tiptap/react'
@@ -28,17 +28,10 @@ const Napkin: React.FC = () => {
     const [showActions, setShowActions] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
-
-    // Auto-adjust title height
-    useEffect(() => {
-        if (titleRef.current) {
-            titleRef.current.style.height = 'auto';
-            titleRef.current.style.height = `${titleRef.current.scrollHeight}px`;
-        }
-    }, [title]);
+    const { user } = useAuth();
 
     // Service Instance
-    const storageService = React.useMemo(() => new LocalStorageNapkinService(), []);
+    const storageService = React.useMemo(() => new NapkinService(), []);
 
     // Close menu when clicking outside
     useEffect(() => {
@@ -133,50 +126,34 @@ const Napkin: React.FC = () => {
         if (editor) {
             loadNapkin();
         }
-    }, [id, editor, storageService]);
+    }, [id, editor, storageService, user]);
 
     // Auto-Save Logic
     const saveNapkin = useDebouncedCallback(async (currentTitle: string, currentContent: string) => {
-        // Only save if there is a title OR the editor actually has text/content
-        const isContentEmpty = editor?.isEmpty;
-        const isTitleEmpty = !currentTitle.trim();
+        // 1. Validation: Don't save if everything is empty
+        if (!currentTitle.trim() && editor?.isEmpty) return;
 
-        if (isTitleEmpty && isContentEmpty) {
-            console.log('Skipping save: Both title and content are empty');
-            return;
-        }
+        // 2. Resolve target: Fetch existing or create a new instance
+        const currentId = napkinIdRef.current;
+        let napkin = currentId ? await storageService.getNapkin(currentId) : null;
 
-        let targetId = napkinIdRef.current;
-        let napkin: NapkinType;
-
-        if (targetId) {
-            const existing = await storageService.getNapkin(targetId);
-            if (existing) {
-                napkin = {
-                    ...existing,
-                    title: currentTitle,
-                    content: currentContent,
-                    lastSavedAt: new Date().toISOString()
-                };
-            } else {
-                // Fallback if ID exists in URL but not in storage (rare)
-                napkin = await storageService.createNapkin();
-                napkin.title = currentTitle;
-                napkin.content = currentContent;
-            }
-        } else {
-            // Create new
+        if (!napkin) {
             napkin = await storageService.createNapkin();
-            napkin.title = currentTitle;
-            napkin.content = currentContent;
-            targetId = napkin.id;
 
-            // Update URL silently
-            navigate(`/napkin/${targetId}`, { replace: true });
+            // If this is a brand new napkin or if the ID was missing/invalid, 
+            // update the URL to match the new identity.
+            if (currentId !== napkin.id) {
+                navigate(`/napkin/${napkin.id}`, { replace: true });
+            }
         }
 
+        // 3. Apply updates
+        napkin.title = currentTitle;
+        napkin.content = currentContent;
+        napkin.lastSavedAt = new Date().toISOString();
+
+        // 4. Persist
         await storageService.saveNapkin(napkin);
-        console.log('Auto-saved napkin:', napkin.id);
     }, 1000);
 
     // Trigger save on changes

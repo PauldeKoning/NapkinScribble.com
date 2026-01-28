@@ -12,4 +12,5 @@ export interface Napkin {
     storage: StorageLocation;
     createdAt: string; // ISO string
     lastSavedAt: string; // ISO string
+    userId?: string; // Optional: User ID for Firebase ownership
 }
