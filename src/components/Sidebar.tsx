@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, useNavigate, useParams } from 'react-router-dom';
-import { Library, PenSquare, X, Cloud, Smartphone } from 'lucide-react';
+import { PenSquare, X, Cloud, Smartphone } from 'lucide-react';
 import { clsx } from 'clsx';
 import { LocalStorageNapkinService } from '../backend/LocalStorageNapkinService';
 import { StorageLocation, type Napkin } from '../types';
@@ -79,7 +79,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                         New Scribble
                     </NavLink>
 
-                    <NavLink
+                    {/* <NavLink
                         to="/napkins"
                         className={({ isActive }) =>
                             clsx(
@@ -93,7 +93,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                     >
                         <Library size={20} />
                         Your Napkins
-                    </NavLink>
+                    </NavLink> */}
 
                     <div className="mt-8">
                         <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-400">

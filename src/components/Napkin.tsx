@@ -229,7 +229,7 @@ const Napkin: React.FC = () => {
     };
 
     return (
-        <div className="relative mx-auto flex h-full w-full max-w-3xl flex-col px-6 pt-6 sm:px-12 md:pt-12">
+        <div className="relative mx-auto flex h-full w-full max-w-3xl flex-col px-4 pt-4 sm:px-12 md:pt-12">
             {/* Top right actions */}
             {id && (
                 <div className="absolute right-4 top-4 z-20 md:right-8 md:top-8" ref={menuRef}>
@@ -270,52 +270,52 @@ const Napkin: React.FC = () => {
                     )}
                 </div>
             )}
-            {/* Title Input Section */}
-            <div className="relative mb-6">
-                <textarea
-                    ref={titleRef}
-                    rows={1}
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Enter' && editor) {
-                            e.preventDefault();
-                            editor.chain().focus().run();
-                        }
-                    }}
-                    placeholder="Name your scribble..."
-                    className="placeholder:text-primary/30 w-full bg-transparent text-4xl font-bold text-primary focus:outline-none sm:text-5xl resize-none overflow-hidden block"
-                    autoFocus
-                    onFocus={() => {
-                        setTitleFocused(true);
-                        if (!title) setShowTitleHint(true);
-                    }}
-                    onBlur={() => {
-                        setTitleFocused(false);
-                        setShowTitleHint(false);
-                    }}
-                />
+            {/* Main Content Scrollable Area (Title + Editor) */}
+            <div className="flex-1 overflow-y-auto pb-32 no-scrollbar">
+                {/* Title Input Section */}
+                <div className="relative mb-4 sm:mb-6">
+                    <textarea
+                        ref={titleRef}
+                        rows={1}
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && editor) {
+                                e.preventDefault();
+                                editor.chain().focus().run();
+                            }
+                        }}
+                        placeholder="Name your napkin..."
+                        className="placeholder:text-primary/30 w-full bg-transparent text-3xl font-bold text-primary focus:outline-none sm:text-5xl resize-none overflow-hidden block"
+                        autoFocus
+                        onFocus={() => {
+                            setTitleFocused(true);
+                            if (!title) setShowTitleHint(true);
+                        }}
+                        onBlur={() => {
+                            setTitleFocused(false);
+                            setShowTitleHint(false);
+                        }}
+                    />
 
-                {/* Animated UX Hint */}
-                <div
-                    className={clsx(
-                        "pointer-events-none absolute -bottom-6 left-1 text-sm font-medium text-accent transition-all duration-500",
-                        showTitleHint && !title ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0"
-                    )}
-                >
-                    Give your idea a name to save it
+                    {/* Animated UX Hint */}
+                    <div
+                        className={clsx(
+                            "pointer-events-none absolute -bottom-4 left-1 text-sm font-medium text-accent transition-all duration-500",
+                            showTitleHint && !title ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0"
+                        )}
+                    >
+                        Give your idea a name to save it
+                    </div>
                 </div>
-            </div>
 
-            {/* Main Editor Area */}
-            <div className="flex-1 overflow-y-auto">
                 <EditorContent editor={editor} />
             </div>
 
             {/* Formatting Toolbar (Sticky Bottom) */}
             <div
                 className={clsx(
-                    "fixed bottom-6 left-1/2 -translate-x-1/2 z-30 px-4 md:bottom-10 md:absolute transition-all duration-300",
+                    "fixed bottom-4 left-1/2 -translate-x-1/2 z-30 px-4 md:bottom-10 md:absolute transition-all duration-300",
                     titleFocused ? "opacity-10 scale-95 pointer-events-none" : "opacity-100 scale-100"
                 )}
             >
