@@ -31,4 +31,91 @@
     @apply text-primary/30 pointer-events-none float-left h-0;
     content: attr(data-placeholder);
   }
+
+  /* Comprehensive List Reset for Tiptap + Tailwind Prose */
+  .tiptap ul,
+  .tiptap ol {
+    padding-left: 1.25rem !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  .tiptap li {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  .tiptap li p {
+    margin: 0 !important;
+    line-height: 1.75rem;
+    /* Explicitly match our min-height control */
+  }
+
+  /* Task List (Checklist) specific overrides */
+  .tiptap ul[data-type="taskList"] {
+    list-style: none;
+    padding-left: 0 !important;
+    margin: 0 !important;
+  }
+
+  .tiptap ul[data-type="taskList"] li {
+    display: flex;
+    align-items: flex-start;
+    padding-left: 0 !important;
+    margin: 0 !important;
+    gap: 0.5rem;
+  }
+
+  /* Remove default prose marker from task items */
+  .tiptap ul[data-type="taskList"] li::before {
+    display: none !important;
+  }
+
+  .tiptap ul[data-type="taskList"] li>label {
+    flex: 0 0 auto;
+    user-select: none;
+    margin: 0 !important;
+    display: flex;
+    align-items: center;
+    height: 1.75rem;
+    /* This aligns with the line-height of the text */
+  }
+
+  .tiptap ul[data-type="taskList"] li>div {
+    flex: 1 1 auto;
+    margin: 0 !important;
+    min-height: 1.75rem;
+    /* REMOVED display: flex to fix caret visibility issues in empty items */
+    display: block;
+  }
+
+  .tiptap ul[data-type="taskList"] input[type="checkbox"] {
+    cursor: pointer;
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--color-primary);
+    margin: 0;
+  }
+
+  /* Ensure the caret is visible in empty paragraphs/list items */
+  .tiptap .is-empty::before {
+    content: "";
+    display: inline-block;
+    height: 0;
+    width: 0;
+  }
+
+  /* Nested Task Lists */
+  .tiptap ul[data-type="taskList"] ul[data-type="taskList"] {
+    padding-left: 1.5rem !important;
+  }
+
+  /* Regular Lists marker styling */
+  .tiptap ul:not([data-type="taskList"]) {
+    list-style-type: disc !important;
+  }
+
+  .tiptap ol {
+    list-style-type: decimal !important;
+  }
 }

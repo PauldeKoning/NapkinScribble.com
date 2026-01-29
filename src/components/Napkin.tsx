@@ -3,6 +3,8 @@ import { useParams, useOutletContext } from 'react-router-dom';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
 import { NapkinService } from '../backend/NapkinService';
 import { clsx } from 'clsx';
 import { useCallback } from 'react';
@@ -51,6 +53,10 @@ const Napkin: React.FC = () => {
             Placeholder.configure({
                 placeholder: EDITOR_CONFIG.PLACEHOLDER_TEXT,
             }),
+            TaskList,
+            TaskItem.configure({
+                nested: true,
+            }),
         ],
         onUpdate: () => setUpdate(s => s + 1),
         onSelectionUpdate: () => setUpdate(s => s + 1),
@@ -59,19 +65,6 @@ const Napkin: React.FC = () => {
             attributes: {
                 class: 'prose prose-lg mx-auto focus:outline-none min-h-[50dvh] pb-32 text-primary/90 caret-primary prose-p:my-1 prose-headings:mb-4 prose-headings:mt-8 leading-snug',
             },
-            handleKeyDown: (_, event) => {
-                if (event.key === 'Enter' && !event.shiftKey) {
-                    setTimeout(() => {
-                        if (editor) {
-                            editor.chain()
-                                .unsetAllMarks()
-                                .setParagraph()
-                                .run();
-                        }
-                    }, 0);
-                }
-                return false;
-            }
         },
     });
 
