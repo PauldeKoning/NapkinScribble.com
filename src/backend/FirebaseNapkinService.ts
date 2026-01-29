@@ -9,7 +9,8 @@ import {
     where,
     orderBy
 } from 'firebase/firestore';
-import { db, auth } from '../firebase';
+import { db } from '../lib/firebase-db';
+import { auth } from '../lib/firebase-auth';
 import { StorageLocation, type Napkin } from '../types';
 import type { NapkinStorage } from './NapkinStorage';
 

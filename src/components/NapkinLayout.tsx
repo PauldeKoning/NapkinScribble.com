@@ -5,7 +5,10 @@ import Sidebar from './Sidebar';
 import { clsx } from 'clsx';
 
 const NapkinLayout: React.FC = () => {
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+        // Open by default on desktop (768px+)
+        return typeof window !== 'undefined' && window.innerWidth >= 768;
+    });
     const location = useLocation();
 
     // Header state shared with children via Context
@@ -30,22 +33,14 @@ const NapkinLayout: React.FC = () => {
                 <header className="flex h-16 shrink-0 items-center justify-between border-b border-gray-100 px-4 md:px-6">
                     <div className="flex items-center gap-3">
                         <button
-                            onClick={() => setIsSidebarOpen(true)}
-                            className="text-primary hover:bg-black/5 rounded-md p-2 transition-colors md:hidden"
+                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                            className="text-primary/50 hover:text-primary rounded-md p-2 transition-colors"
+                            title={isSidebarOpen ? "Close Sidebar" : "Open Sidebar"}
                         >
-                            <PanelLeft size={24} />
+                            <PanelLeft size={24} className={clsx(isSidebarOpen && "text-primary")} />
                         </button>
 
-                        {/* Always show desktop toggle if sidebar is NOT persistent, but for now just mobile */}
-                        <button
-                            onClick={() => setIsSidebarOpen(true)}
-                            className="text-primary/50 hover:text-primary hidden md:block transition-colors"
-                            title="Open Sidebar"
-                        >
-                            <PanelLeft size={24} className={clsx(isSidebarOpen && "opacity-0")} />
-                        </button>
-
-                        <span className="font-handwritten text-2xl font-bold text-primary sm:text-3xl">
+                        <span className="font-handwritten text-2xl font-bold text-primary sm:text-3xl md:hidden">
                             NapkinScribble
                         </span>
                     </div>

@@ -12,4 +12,15 @@ export default defineConfig({
     }),
     tailwindcss(),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'firebase-auth': ['firebase/auth', 'firebase/app'],
+          'firebase-db': ['firebase/firestore'],
+          'editor': ['@tiptap/react', '@tiptap/starter-kit', '@tiptap/extension-placeholder']
+        }
+      }
+    }
+  }
 })

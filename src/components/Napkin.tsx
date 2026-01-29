@@ -123,34 +123,59 @@ const Napkin: React.FC = () => {
     }, [id]);
 
     // Load Napkin Logic
-    useEffect(() => {
-        const loadNapkin = async () => {
-            setIsLoaded(false); // Reset loading state when ID changes
-            isInitialLoadRef.current = true; // Mark as initial load start
-            if (id) {
-                const napkin = await storageService.getNapkin(id);
-                if (napkin) {
-                    setTitle(napkin.title);
-                    editor?.commands.setContent(napkin.content);
-                    if (napkin.lastSavedAt) {
-                        setLastSaved(new Date(napkin.lastSavedAt));
-                    }
-                }
-            } else {
-                setTitle('');
-                editor?.commands.setContent('');
-                napkinIdRef.current = null;
-                setLastSaved(null);
-            }
-            setIsLoaded(true);
-            // small delay to let effects settle before allowing auto-save
-            setTimeout(() => { isInitialLoadRef.current = false; }, 100);
-        };
+    const loadNapkin = React.useCallback(async (suppressLoadingState = false) => {
+        if (!suppressLoadingState) setIsLoaded(false);
+        isInitialLoadRef.current = true;
 
+        if (id) {
+            const napkin = await storageService.getNapkin(id);
+            if (napkin) {
+                // Only update if content or title actually differs to avoid editor cursor jumps
+                if (napkin.title !== title) setTitle(napkin.title);
+
+                const currentContent = editor?.getHTML();
+                if (napkin.content !== currentContent) {
+                    editor?.commands.setContent(napkin.content);
+                }
+
+                if (napkin.lastSavedAt) {
+                    setLastSaved(new Date(napkin.lastSavedAt));
+                }
+            }
+        } else {
+            setTitle('');
+            editor?.commands.setContent('');
+            napkinIdRef.current = null;
+            setLastSaved(null);
+        }
+
+        if (!suppressLoadingState) setIsLoaded(true);
+        setTimeout(() => { isInitialLoadRef.current = false; }, 100);
+    }, [id, editor, storageService, title]);
+
+    useEffect(() => {
         if (editor) {
             loadNapkin();
         }
-    }, [id, editor, storageService, user]);
+    }, [id, editor, loadNapkin, user]);
+
+    // Refresh on tab focus / visibility change
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible' && id && editor) {
+                console.log('[Sync] Tab focused, refreshing content...');
+                loadNapkin(true); // suppress loading spinner for a silent background refresh
+            }
+        };
+
+        window.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('focus', handleVisibilityChange);
+
+        return () => {
+            window.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('focus', handleVisibilityChange);
+        };
+    }, [id, editor, loadNapkin]);
 
 
     // Auto-Save Logic
@@ -183,6 +208,7 @@ const Napkin: React.FC = () => {
         try {
             await storageService.saveNapkin(napkin);
             setLastSaved(new Date());
+            window.dispatchEvent(new CustomEvent('napkin-update'));
         } finally {
             setIsSaving(false);
         }
@@ -253,6 +279,7 @@ const Napkin: React.FC = () => {
     const handleDelete = async () => {
         if (id) {
             await storageService.deleteNapkin(id);
+            window.dispatchEvent(new CustomEvent('napkin-update'));
             navigate('/napkin', { replace: true });
         }
     };

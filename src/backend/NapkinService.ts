@@ -2,7 +2,7 @@ import { LocalStorageNapkinService } from './LocalStorageNapkinService';
 import { FirebaseNapkinCache } from './FirebaseNapkinCache';
 import { StorageLocation, type Napkin } from '../types';
 import type { NapkinStorage } from './NapkinStorage';
-import { auth } from '../firebase';
+import { auth } from '../lib/firebase-auth';
 
 // Shared instance to persist cache across navigation/renders
 const sharedCloudCache = new FirebaseNapkinCache();
