@@ -21,7 +21,7 @@ export class LocalStorageNapkinService implements NapkinStorage {
         const data = localStorage.getItem(STORAGE_KEY);
         // Return parsed data or empty array, sorted by createdAt descending (newest first)
         const napkins: Napkin[] = data ? JSON.parse(data) : [];
-        return napkins.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        return napkins.sort((a, b) => new Date(b.lastSavedAt).getTime() - new Date(a.lastSavedAt).getTime());
     }
 
     async getNapkin(id: string): Promise<Napkin | null> {

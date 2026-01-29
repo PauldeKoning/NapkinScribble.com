@@ -18,6 +18,15 @@ const Napkin: React.FC = () => {
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
+    // Dynamic document title
+    useEffect(() => {
+        if (title.trim()) {
+            document.title = `${title} | NapkinScribble`;
+        } else {
+            document.title = "New Scribble | NapkinScribble";
+        }
+    }, [title]);
+
     // Sync state with parent layout
     const { setHeaderState } = useOutletContext<{
         setHeaderState: (state: any) => void;
@@ -35,6 +44,7 @@ const Napkin: React.FC = () => {
     const [showActions, setShowActions] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
+    const isInitialLoadRef = useRef(true);
     const { user } = useAuth();
 
     // Service Instance
@@ -115,20 +125,26 @@ const Napkin: React.FC = () => {
     // Load Napkin Logic
     useEffect(() => {
         const loadNapkin = async () => {
+            setIsLoaded(false); // Reset loading state when ID changes
+            isInitialLoadRef.current = true; // Mark as initial load start
             if (id) {
                 const napkin = await storageService.getNapkin(id);
                 if (napkin) {
                     setTitle(napkin.title);
                     editor?.commands.setContent(napkin.content);
+                    if (napkin.lastSavedAt) {
+                        setLastSaved(new Date(napkin.lastSavedAt));
+                    }
                 }
-                console.log(napkin?.lastSavedAt);
             } else {
-                // Reset for new napkin
                 setTitle('');
                 editor?.commands.setContent('');
                 napkinIdRef.current = null;
+                setLastSaved(null);
             }
             setIsLoaded(true);
+            // small delay to let effects settle before allowing auto-save
+            setTimeout(() => { isInitialLoadRef.current = false; }, 100);
         };
 
         if (editor) {
@@ -136,8 +152,10 @@ const Napkin: React.FC = () => {
         }
     }, [id, editor, storageService, user]);
 
+
     // Auto-Save Logic
     const saveNapkin = useDebouncedCallback(async (currentTitle: string, currentContent: string) => {
+        console.log("Saving napkin...");
         // 1. Validation: Don't save if everything is empty
         if (!currentTitle.trim() && editor?.isEmpty) return;
 
@@ -170,9 +188,16 @@ const Napkin: React.FC = () => {
         }
     }, 1000);
 
+    // Cleanup: Cancel pending saves when switching napkins or unmounting
+    useEffect(() => {
+        return () => {
+            saveNapkin.cancel();
+        };
+    }, [id, saveNapkin]);
+
     // Trigger save on changes
     useEffect(() => {
-        if (!isLoaded || !editor) return;
+        if (!isLoaded || !editor || isInitialLoadRef.current) return;
 
         setLastSaved(null); // Clear saved status immediately on change
         const content = editor.getHTML();
@@ -185,6 +210,8 @@ const Napkin: React.FC = () => {
         if (!editor || !isLoaded) return;
 
         const handleUpdate = () => {
+            if (isInitialLoadRef.current) return; // Don't save on load
+
             setLastSaved(null); // Clear saved status immediately on change
             saveNapkin(title, editor.getHTML());
         };
@@ -198,7 +225,7 @@ const Napkin: React.FC = () => {
 
     // Allow title changes to trigger save too
     useEffect(() => {
-        if (isLoaded && editor) {
+        if (isLoaded && editor && !isInitialLoadRef.current) {
             setLastSaved(null); // Clear saved status immediately on change
             saveNapkin(title, editor.getHTML());
         }

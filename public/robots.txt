@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /napkin/
+
+Sitemap: https://napkinscribble.com/sitemap.xml

@@ -1,19 +1,29 @@
 import { LocalStorageNapkinService } from './LocalStorageNapkinService';
-import { FirebaseNapkinService } from './FirebaseNapkinService';
-import type { Napkin } from '../types';
+import { FirebaseNapkinCache } from './FirebaseNapkinCache';
+import { StorageLocation, type Napkin } from '../types';
 import type { NapkinStorage } from './NapkinStorage';
 import { auth } from '../firebase';
 
+// Shared instance to persist cache across navigation/renders
+const sharedCloudCache = new FirebaseNapkinCache();
+
+// Clear cache on auth changes
+auth.onAuthStateChanged((user) => {
+    sharedCloudCache.clear();
+});
+
 export class NapkinService implements NapkinStorage {
     private local = new LocalStorageNapkinService();
-    private cloud = new FirebaseNapkinService();
+    private cloud = sharedCloudCache;
 
     private get isAuthenticated() {
         return !!auth.currentUser;
     }
 
     private isNewer(a: Napkin, b: Napkin): boolean {
-        return new Date(a.lastSavedAt).getTime() > new Date(b.lastSavedAt).getTime();
+        // Add a small grace period to overwrite local with cloud if they are very close
+        const GRACE_PERIOD_MS = 50;
+        return (new Date(a.lastSavedAt).getTime() + GRACE_PERIOD_MS) > new Date(b.lastSavedAt).getTime();
     }
 
     async saveNapkin(napkin: Napkin): Promise<void> {
@@ -56,9 +66,11 @@ export class NapkinService implements NapkinStorage {
                 combined.set(cN.id, cN);
 
                 // Sync to local if it's newer or missing
-                this.local.saveNapkin(cN).catch(err =>
+                this.local.saveNapkin({ ...cN, storage: StorageLocation.Firebase }).catch(err =>
                     console.error(`Failed to sync napkin ${cN.id} to local:`, err)
-                );
+                ).finally(() => {
+                    // console.log(`Synced napkin ${cN.title} (${cN.id}) to local`);
+                });
             }
         });
 

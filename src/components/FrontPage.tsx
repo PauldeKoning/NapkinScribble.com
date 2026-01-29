@@ -2,6 +2,10 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 
 const FrontPage: React.FC = () => {
+    React.useEffect(() => {
+        document.title = "NapkinScribble - Capture your brilliant ideas instantly";
+    }, []);
+
     return (
         <div className="bg-surface fixed inset-0 flex w-full flex-col items-center justify-center overflow-hidden p-6 font-sans">
             <div className="flex w-full max-w-sm flex-col items-center text-center sm:max-w-2xl">

@@ -27,11 +27,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
     useEffect(() => {
         fetchNapkins();
-
-        // Listen for storage events (basic cross-tab sync) 
-        // OR simpler: just re-fetch when the sidebar opens or url changes
-        window.addEventListener('storage', fetchNapkins);
-        return () => window.removeEventListener('storage', fetchNapkins);
     }, [isOpen, id, user]); // Re-fetch when sidebar opens, ID changes, or user auth state changes
 
     return (

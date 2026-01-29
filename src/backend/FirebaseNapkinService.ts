@@ -44,7 +44,7 @@ export class FirebaseNapkinService implements NapkinStorage {
         const q = query(
             collection(db, this.collectionName),
             where('userId', '==', this.userId),
-            orderBy('createdAt', 'desc')
+            orderBy('lastSavedAt', 'desc')
         );
 
         const querySnapshot = await getDocs(q);
