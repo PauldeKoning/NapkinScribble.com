@@ -27,9 +27,14 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  /* Placeholder Styling */
   .tiptap p.is-editor-empty:first-child::before {
-    @apply text-primary/30 pointer-events-none float-left h-0;
     content: attr(data-placeholder);
+    float: left;
+    color: #adb5bd;
+    pointer-events: none;
+    height: 0;
+    /* Removed width: 0 and other potential wrapping triggers */
   }
 
   /* Comprehensive List Reset for Tiptap + Tailwind Prose */
@@ -48,7 +53,6 @@
   .tiptap li p {
     margin: 0 !important;
     line-height: 1.75rem;
-    /* Explicitly match our min-height control */
   }
 
   /* Task List (Checklist) specific overrides */
@@ -78,15 +82,14 @@
     display: flex;
     align-items: center;
     height: 1.75rem;
-    /* This aligns with the line-height of the text */
   }
 
   .tiptap ul[data-type="taskList"] li>div {
     flex: 1 1 auto;
     margin: 0 !important;
     min-height: 1.75rem;
-    /* REMOVED display: flex to fix caret visibility issues in empty items */
     display: block;
+    /* Safer for caret visibility */
   }
 
   .tiptap ul[data-type="taskList"] input[type="checkbox"] {
@@ -95,14 +98,6 @@
     height: 1rem;
     accent-color: var(--color-primary);
     margin: 0;
-  }
-
-  /* Ensure the caret is visible in empty paragraphs/list items */
-  .tiptap .is-empty::before {
-    content: "";
-    display: inline-block;
-    height: 0;
-    width: 0;
   }
 
   /* Nested Task Lists */
