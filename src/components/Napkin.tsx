@@ -1,22 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
-import { useDebouncedCallback } from 'use-debounce';
+import { useParams, useOutletContext } from 'react-router-dom';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import { NapkinService } from '../backend/NapkinService';
-import { useAuth } from '../contexts/AuthContext';
-import { Bold, Italic, Type, MoreHorizontal, Trash2 } from 'lucide-react';
 import { clsx } from 'clsx';
-import { useEditorState } from '@tiptap/react'
+import { useCallback } from 'react';
+import { EDITOR_CONFIG } from '../constants/editor';
+import { useAutoSave } from '../hooks/useAutoSave';
+import { useNapkinLoader } from '../hooks/useNapkinLoader';
+import { NapkinActionsMenu } from './NapkinActionsMenu';
+import { NapkinToolbar } from './NapkinToolbar';
 
 const Napkin: React.FC = () => {
     const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
     const [title, setTitle] = useState('');
-    const [isLoaded, setIsLoaded] = useState(false);
-    const [lastSaved, setLastSaved] = useState<Date | null>(null);
-    const [isSaving, setIsSaving] = useState(false);
 
     // Dynamic document title
     useEffect(() => {
@@ -32,41 +30,16 @@ const Napkin: React.FC = () => {
         setHeaderState: (state: any) => void;
     }>();
 
-    // We use a ref to hold the current ID so our auto-save logic always has the latest execution context
-    // without needing to be re-created on every render.
-    const napkinIdRef = useRef<string | null>(id || null);
-
     const [showTitleHint, setShowTitleHint] = useState(false);
     const [titleFocused, setTitleFocused] = useState(false);
     const [, setUpdate] = useState(0);
     const titleRef = React.useRef<HTMLTextAreaElement>(null);
 
-    const [showActions, setShowActions] = useState(false);
-    const [confirmDelete, setConfirmDelete] = useState(false);
-    const menuRef = useRef<HTMLDivElement>(null);
     const isInitialLoadRef = useRef(true);
-    const { user } = useAuth();
 
     // Service Instance
     const storageService = React.useMemo(() => new NapkinService(), []);
 
-    // Close menu when clicking outside
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-                setShowActions(false);
-                setConfirmDelete(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    // Reset menu state when switching napkins
-    useEffect(() => {
-        setShowActions(false);
-        setConfirmDelete(false);
-    }, [id]);
     // ... rest of useEditor stays same
     const editor = useEditor({
         extensions: [
@@ -76,7 +49,7 @@ const Napkin: React.FC = () => {
                 },
             }),
             Placeholder.configure({
-                placeholder: 'Start scribbling... Maybe a startup idea, a feature note, or just a grocery list?',
+                placeholder: EDITOR_CONFIG.PLACEHOLDER_TEXT,
             }),
         ],
         onUpdate: () => setUpdate(s => s + 1),
@@ -102,165 +75,34 @@ const Napkin: React.FC = () => {
         },
     });
 
-    const editorState = useEditorState({
-        editor: editor,
-        selector: ({ editor }) => {
-            if (!editor) return null
+    const onDataLoaded = useCallback((newTitle: string, _newContent: string) => {
+        setTitle(newTitle);
+    }, []);
 
-            return {
-                isEditable: editor.isEditable,
-                isBold: editor.isActive('bold'),
-                isItalic: editor.isActive('italic'),
-                isHeading: editor.isActive('heading', { level: 2 }),
-            }
-        },
+    const { isLoaded } = useNapkinLoader({
+        napkinId: id,
+        editor,
+        storageService,
+        isInitialLoadRef,
+        onDataLoaded,
+    });
+
+    // Auto-save hook (after editor is defined and isLoaded is available)
+    const { isSaving, lastSaved } = useAutoSave({
+        napkinId: id,
+        title,
+        editor,
+        isLoaded,
+        storageService,
+        isInitialLoadRef,
     });
 
 
-    // Sync ref when ID changes
-    useEffect(() => {
-        napkinIdRef.current = id || null;
-    }, [id]);
 
-    // Load Napkin Logic
-    const loadNapkin = React.useCallback(async (suppressLoadingState = false) => {
-        if (!suppressLoadingState) setIsLoaded(false);
-        isInitialLoadRef.current = true;
-
-        if (id) {
-            const napkin = await storageService.getNapkin(id);
-            if (napkin) {
-                // Only update if content or title actually differs to avoid editor cursor jumps
-                if (napkin.title !== title) setTitle(napkin.title);
-
-                const currentContent = editor?.getHTML();
-                if (napkin.content !== currentContent) {
-                    editor?.commands.setContent(napkin.content);
-                }
-
-                if (napkin.lastSavedAt) {
-                    setLastSaved(new Date(napkin.lastSavedAt));
-                }
-            }
-        } else {
-            setTitle('');
-            editor?.commands.setContent('');
-            napkinIdRef.current = null;
-            setLastSaved(null);
-        }
-
-        if (!suppressLoadingState) setIsLoaded(true);
-        setTimeout(() => { isInitialLoadRef.current = false; }, 100);
-    }, [id, editor, storageService, title]);
-
-    useEffect(() => {
-        if (editor) {
-            loadNapkin();
-        }
-    }, [id, editor, loadNapkin, user]);
-
-    // Refresh on tab focus / visibility change
-    useEffect(() => {
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible' && id && editor) {
-                console.log('[Sync] Tab focused, refreshing content...');
-                loadNapkin(true); // suppress loading spinner for a silent background refresh
-            }
-        };
-
-        window.addEventListener('visibilitychange', handleVisibilityChange);
-        window.addEventListener('focus', handleVisibilityChange);
-
-        return () => {
-            window.removeEventListener('visibilitychange', handleVisibilityChange);
-            window.removeEventListener('focus', handleVisibilityChange);
-        };
-    }, [id, editor, loadNapkin]);
-
-
-    // Auto-Save Logic
-    const saveNapkin = useDebouncedCallback(async (currentTitle: string, currentContent: string) => {
-        console.log("Saving napkin...");
-        // 1. Validation: Don't save if everything is empty
-        if (!currentTitle.trim() && editor?.isEmpty) return;
-
-        // 2. Resolve target: Fetch existing or create a new instance
-        const currentId = napkinIdRef.current;
-        let napkin = currentId ? await storageService.getNapkin(currentId) : null;
-
-        if (!napkin) {
-            napkin = await storageService.createNapkin();
-
-            // If this is a brand new napkin or if the ID was missing/invalid, 
-            // update the URL to match the new identity.
-            if (currentId !== napkin.id) {
-                navigate(`/napkin/${napkin.id}`, { replace: true });
-            }
-        }
-
-        // 3. Apply updates
-        napkin.title = currentTitle;
-        napkin.content = currentContent;
-        napkin.lastSavedAt = new Date().toISOString();
-
-        // 4. Persist
-        setIsSaving(true);
-        try {
-            await storageService.saveNapkin(napkin);
-            setLastSaved(new Date());
-            window.dispatchEvent(new CustomEvent('napkin-update'));
-        } finally {
-            setIsSaving(false);
-        }
-    }, 1000);
-
-    // Cleanup: Cancel pending saves when switching napkins or unmounting
-    useEffect(() => {
-        return () => {
-            saveNapkin.cancel();
-        };
-    }, [id, saveNapkin]);
-
-    // Trigger save on changes
-    useEffect(() => {
-        if (!isLoaded || !editor || isInitialLoadRef.current) return;
-
-        setLastSaved(null); // Clear saved status immediately on change
-        const content = editor.getHTML();
-        saveNapkin(title, content);
-
-    }, [title, editor?.state.doc.content.size, saveNapkin, isLoaded]); // simplistic dependency on content size or just editor update
-
-    // Better way for Tiptap content update:
-    useEffect(() => {
-        if (!editor || !isLoaded) return;
-
-        const handleUpdate = () => {
-            if (isInitialLoadRef.current) return; // Don't save on load
-
-            setLastSaved(null); // Clear saved status immediately on change
-            saveNapkin(title, editor.getHTML());
-        };
-
-        editor.on('update', handleUpdate);
-
-        return () => {
-            editor.off('update', handleUpdate);
-        }
-    }, [editor, title, isLoaded, saveNapkin]);
-
-    // Allow title changes to trigger save too
-    useEffect(() => {
-        if (isLoaded && editor && !isInitialLoadRef.current) {
-            setLastSaved(null); // Clear saved status immediately on change
-            saveNapkin(title, editor.getHTML());
-        }
-    }, [title, isLoaded]);
-
-
+    // Title hint animation
     useEffect(() => {
         if (!title) {
-            const timer = setTimeout(() => setShowTitleHint(true), 500);
+            const timer = setTimeout(() => setShowTitleHint(true), EDITOR_CONFIG.TITLE_HINT_DELAY_MS);
             return () => clearTimeout(timer);
         } else {
             setShowTitleHint(false);
@@ -276,58 +118,15 @@ const Napkin: React.FC = () => {
         }
     }, [title]);
 
-    const handleDelete = async () => {
-        if (id) {
-            await storageService.deleteNapkin(id);
-            window.dispatchEvent(new CustomEvent('napkin-update'));
-            navigate('/napkin', { replace: true });
-        }
-    };
 
+
+    // Sync header state with parent layout
     useEffect(() => {
         if (id) {
             setHeaderState({
                 isSaving,
                 lastSaved,
-                actions: (
-                    <div ref={menuRef} className="relative">
-                        <button
-                            onClick={() => setShowActions(!showActions)}
-                            className="text-primary/40 hover:bg-black/5 hover:text-primary rounded-full p-2 transition-colors"
-                        >
-                            <MoreHorizontal size={20} />
-                        </button>
-
-                        {showActions && (
-                            <div className="bg-surface absolute right-0 mt-2 w-48 origin-top-right rounded-2xl p-1 shadow-2xl ring-1 ring-black/5 backdrop-blur-md animate-in fade-in zoom-in duration-200 z-50">
-                                {!confirmDelete ? (
-                                    <button
-                                        onClick={() => setConfirmDelete(true)}
-                                        className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
-                                    >
-                                        <Trash2 size={18} />
-                                        Delete Scribble
-                                    </button>
-                                ) : (
-                                    <div className="p-1">
-                                        <button
-                                            onClick={handleDelete}
-                                            className="mb-1 flex w-full items-center justify-center rounded-xl bg-red-600 px-4 py-3 text-sm font-bold text-white transition-all hover:bg-red-700 active:scale-95 shadow-md"
-                                        >
-                                            Tap again to delete
-                                        </button>
-                                        <button
-                                            onClick={() => setConfirmDelete(false)}
-                                            className="flex w-full items-center justify-center rounded-xl px-4 py-2 text-xs font-medium text-primary/40 hover:bg-black/5"
-                                        >
-                                            Cancel
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                )
+                actions: <NapkinActionsMenu napkinId={id} storageService={storageService} />
             });
         } else {
             setHeaderState({ isSaving: false, lastSaved: null, actions: null });
@@ -335,7 +134,15 @@ const Napkin: React.FC = () => {
 
         // Cleanup header state when unmounting
         return () => setHeaderState({ isSaving: false, lastSaved: null, actions: null });
-    }, [id, isSaving, lastSaved, showActions, confirmDelete, setHeaderState]);
+    }, [id, isSaving, lastSaved, setHeaderState, storageService]);
+
+    if (!isLoaded) {
+        return (
+            <div className="flex h-full w-full items-center justify-center bg-[#FCFBF4]">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+            </div>
+        );
+    }
 
     return (
         <div className="relative mx-auto flex h-full w-full max-w-3xl flex-col px-4 pt-4 sm:px-12 md:pt-12">
@@ -382,60 +189,8 @@ const Napkin: React.FC = () => {
             </div>
 
             {/* Formatting Toolbar (Sticky Bottom) */}
-            <div
-                className={clsx(
-                    "fixed bottom-4 left-1/2 -translate-x-1/2 z-30 px-4 md:bottom-10 md:absolute transition-all duration-300",
-                    titleFocused ? "opacity-10 scale-95 pointer-events-none" : "opacity-100 scale-100"
-                )}
-            >
-                {editor && (
-                    <div className="flex items-center gap-1 rounded-full bg-surface px-4 py-2 shadow-xl ring-1 ring-black/5 backdrop-blur-md">
-                        <button
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => editor.chain().focus().toggleBold().run()}
-                            className={clsx(
-                                "rounded-full p-3 transition-all duration-200",
-                                editorState?.isBold
-                                    ? "bg-primary text-surface shadow-md"
-                                    : "text-primary/40 hover:bg-black/5 hover:text-primary"
-                            )}
-                            title="Bold"
-                        >
-                            <Bold size={20} strokeWidth={editorState?.isBold ? 3 : 2} />
-                        </button>
-                        <button
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => editor.chain().focus().toggleItalic().run()}
-                            className={clsx(
-                                "rounded-full p-3 transition-all duration-200",
-                                editorState?.isItalic
-                                    ? "bg-primary text-surface shadow-md"
-                                    : "text-primary/40 hover:bg-black/5 hover:text-primary"
-                            )}
-                            title="Italic"
-                        >
-                            <Italic size={20} strokeWidth={editorState?.isItalic ? 3 : 2} />
-                        </button>
-                        <div className="mx-2 h-6 w-px bg-gray-200" />
-                        <button
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-                            className={clsx(
-                                "rounded-full p-3 transition-all duration-200",
-                                editorState?.isHeading
-                                    ? "bg-primary text-surface shadow-md"
-                                    : "text-primary/40 hover:bg-black/5 hover:text-primary"
-                            )}
-                            title="Heading"
-                        >
-                            <Type size={20} strokeWidth={editorState?.isHeading ? 3 : 2} />
-                        </button>
-                    </div>
-                )}
-            </div>
+            <NapkinToolbar editor={editor} isVisible={!titleFocused} />
+
         </div>
     );
 };

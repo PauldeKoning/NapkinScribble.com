@@ -1,5 +1,6 @@
 ---
-trigger: always_on
+trigger: manual
+description: When making a web ui element design decision
 ---
 
 Project Manifest: NapkinScribble.com
