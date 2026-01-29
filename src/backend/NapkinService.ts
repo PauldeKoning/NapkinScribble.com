@@ -8,7 +8,7 @@ import { auth } from '../firebase';
 const sharedCloudCache = new FirebaseNapkinCache();
 
 // Clear cache on auth changes
-auth.onAuthStateChanged((user) => {
+auth.onAuthStateChanged(() => {
     sharedCloudCache.clear();
 });
 
