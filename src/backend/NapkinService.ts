@@ -1,6 +1,6 @@
 import { LocalStorageNapkinService } from './LocalStorageNapkinService';
 import { FirebaseNapkinCache } from './FirebaseNapkinCache';
-import { StorageLocation, type Napkin } from '../types';
+import { type Napkin } from '../types';
 import type { NapkinStorage } from './NapkinStorage';
 import { auth } from '../lib/firebase-auth';
 
