@@ -20,25 +20,30 @@ export class NapkinService implements NapkinStorage {
         return !!auth.currentUser;
     }
 
-    private isNewer(a: Napkin, b: Napkin): boolean {
+    private isNewer(a: Napkin, b: Napkin, aGracePeriodMs: number = 50, bGracePeriodMs: number = 0): boolean {
         // Add a small grace period to overwrite local with cloud if they are very close
-        const GRACE_PERIOD_MS = 50;
-        return (new Date(a.lastSavedAt).getTime() + GRACE_PERIOD_MS) > new Date(b.lastSavedAt).getTime();
+        return (new Date(a.lastSavedAt).getTime() + aGracePeriodMs) > new Date(b.lastSavedAt).getTime() + bGracePeriodMs;
     }
 
-    async saveNapkin(napkin: Napkin): Promise<void> {
+    private isSame(a: Napkin, b: Napkin): boolean {
+        return a.lastSavedAt === b.lastSavedAt;
+    }
+
+    async saveNapkin(napkin: Napkin): Promise<Napkin> {
         // Always save to local for speed and offline support
-        await this.local.saveNapkin(napkin);
+        const localNapkin = await this.local.saveNapkin(napkin);
 
         // If authenticated, also save to cloud
         if (this.isAuthenticated) {
             try {
-                await this.cloud.saveNapkin(napkin);
+                return await this.cloud.saveNapkin(napkin);
             } catch (error) {
                 console.error("Failed to save to cloud:", error);
                 // We don't throw here because local save succeeded
             }
         }
+
+        return localNapkin;
     }
 
     async getNapkins(): Promise<Napkin[]> {
@@ -54,23 +59,52 @@ export class NapkinService implements NapkinStorage {
         }
 
         // Merge and deduplicate, keeping the fresher version
+        //const combined = new Map<string, Napkin>();
         const combined = new Map<string, Napkin>();
 
-        // Add local first
-        localNapkins.forEach(n => combined.set(n.id, n));
+        for (const n of localNapkins) {
+            if (!this.isAuthenticated) {
+                // Fallback to local if not authenticated
+                combined.set(n.id, n);
+                continue;
+            }
 
-        // Add cloud, replacing if cloud is newer
+            // If user is authenticated, sync napkins with cloud
+            const cloudNapkin = cloudNapkins.find(cN => cN.id === n.id);
+
+            // Sync all local napkins that do not exist on cloud
+
+            if (!cloudNapkin) {
+                console.log('Local does not exist on cloud for: ' + n.title);
+                const syncedNapkin = await this.cloud.saveNapkin(n);
+                combined.set(syncedNapkin.id, syncedNapkin);
+                continue;
+            }
+
+            // If date is same, continue
+            if (this.isSame(cloudNapkin, n)) {
+                continue;
+            }
+
+            // If local is newer than cloud
+            if (!this.isNewer(cloudNapkin, n)) {
+                console.log('Local is newer for: ' + n.title);
+                const syncedNapkin = await this.cloud.saveNapkin(n);
+                combined.set(syncedNapkin.id, syncedNapkin);
+                continue;
+            } else if (this.isNewer(cloudNapkin, n)) {
+                // If cloud is newer than local
+                console.log('Cloud is newer for:' + n.title);
+                const syncedNapkin = await this.local.saveNapkin(cloudNapkin);
+                combined.set(syncedNapkin.id, syncedNapkin);
+            }
+        }
+
+        // Add cloud napkins
         cloudNapkins.forEach(cN => {
             const existing = combined.get(cN.id);
-            if (!existing || this.isNewer(cN, existing)) {
+            if (!existing) {
                 combined.set(cN.id, cN);
-
-                // Sync to local if it's newer or missing
-                this.local.saveNapkin({ ...cN, storage: StorageLocation.Firebase }).catch(err =>
-                    console.error(`Failed to sync napkin ${cN.id} to local:`, err)
-                ).finally(() => {
-                    // console.log(`Synced napkin ${cN.title} (${cN.id}) to local`);
-                });
             }
         });
 

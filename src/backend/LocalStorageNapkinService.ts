@@ -4,9 +4,11 @@ import type { NapkinStorage } from './NapkinStorage';
 const STORAGE_KEY = 'napkin_scribbles';
 
 export class LocalStorageNapkinService implements NapkinStorage {
-    async saveNapkin(napkin: Napkin): Promise<void> {
+    async saveNapkin(napkin: Napkin): Promise<Napkin> {
+        console.log('Saving local napkin for: ' + napkin.title);
         const napkins = await this.getNapkins();
         const index = napkins.findIndex((n) => n.id === napkin.id);
+        console.log('Index/title', index, napkin.title);
 
         if (index >= 0) {
             napkins[index] = napkin;
@@ -15,13 +17,15 @@ export class LocalStorageNapkinService implements NapkinStorage {
         }
 
         localStorage.setItem(STORAGE_KEY, JSON.stringify(napkins));
+
+        return napkin;
     }
 
     async getNapkins(): Promise<Napkin[]> {
         const data = localStorage.getItem(STORAGE_KEY);
         // Return parsed data or empty array, sorted by createdAt descending (newest first)
         const napkins: Napkin[] = data ? JSON.parse(data) : [];
-        return napkins.sort((a, b) => new Date(b.lastSavedAt).getTime() - new Date(a.lastSavedAt).getTime());
+        return napkins.sort((a, b) => new Date(b.lastSavedAt).getTime() - new Date(a.lastSavedAt).getTime()).map(n => ({ ...n, storage: StorageLocation.LocalStorage }));
     }
 
     async getNapkin(id: string): Promise<Napkin | null> {

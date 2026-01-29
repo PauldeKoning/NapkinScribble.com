@@ -1,7 +1,7 @@
 import type { Napkin } from '../types';
 
 export interface NapkinStorage {
-    saveNapkin(napkin: Napkin): Promise<void>;
+    saveNapkin(napkin: Napkin): Promise<Napkin>;
     getNapkins(): Promise<Napkin[]>;
     getNapkin(id: string): Promise<Napkin | null>;
     createNapkin(): Promise<Napkin>;

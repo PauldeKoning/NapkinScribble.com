@@ -33,10 +33,12 @@ export class FirebaseNapkinCache implements NapkinStorage {
         return napkin;
     }
 
-    async saveNapkin(napkin: Napkin): Promise<void> {
-        await this.realService.saveNapkin(napkin);
+    async saveNapkin(napkin: Napkin): Promise<Napkin> {
+        const savedNapkin = await this.realService.saveNapkin(napkin);
 
         this.saveNapkinToCache(napkin);
+
+        return savedNapkin;
     }
 
     private saveNapkinToCache(napkin: Napkin): void {

@@ -21,7 +21,7 @@ export class FirebaseNapkinService implements NapkinStorage {
         return auth.currentUser?.uid;
     }
 
-    async saveNapkin(napkin: Napkin): Promise<void> {
+    async saveNapkin(napkin: Napkin): Promise<Napkin> {
         if (!this.userId) throw new Error('User must be authenticated to save to Firebase');
 
         const docRef = doc(db, this.collectionName, napkin.id);
@@ -36,7 +36,14 @@ export class FirebaseNapkinService implements NapkinStorage {
             lastSavedAt: new Date().toISOString()
         };
 
-        await setDoc(docRef, dataToSave, { merge: true });
+        try {
+            await setDoc(docRef, dataToSave, { merge: true });
+        } catch (e) {
+            console.log("Error saving napkin to Firebase: " + e);
+            throw Error('Failed syncing napkin');
+        }
+
+        return dataToSave;
     }
 
     async getNapkins(): Promise<Napkin[]> {
