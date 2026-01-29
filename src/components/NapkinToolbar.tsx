@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Editor } from '@tiptap/react';
 import { useEditorState } from '@tiptap/react';
-import { Bold, Italic, Type, ListChecks, List } from 'lucide-react';
+import { Bold, Italic, Type, ListChecks, List, ListOrdered } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface NapkinToolbarProps {
@@ -22,6 +22,7 @@ export const NapkinToolbar: React.FC<NapkinToolbarProps> = ({ editor, isVisible 
                 isHeading: editor.isActive('heading', { level: 2 }),
                 isTaskList: editor.isActive('taskList'),
                 isBulletList: editor.isActive('bulletList'),
+                isOrderedList: editor.isActive('orderedList'),
             };
         },
     });
@@ -80,6 +81,20 @@ export const NapkinToolbar: React.FC<NapkinToolbarProps> = ({ editor, isVisible 
                     <Type size={20} strokeWidth={editorState?.isHeading ? 3 : 2} />
                 </button>
                 <div className="mx-1 h-6 w-px bg-gray-200" />
+                <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                    className={clsx(
+                        "rounded-full p-2.5 transition-all duration-200",
+                        editorState?.isOrderedList
+                            ? "bg-primary text-surface shadow-md"
+                            : "text-primary/40 hover:bg-black/5 hover:text-primary"
+                    )}
+                    title="Ordered List"
+                >
+                    <ListOrdered size={20} strokeWidth={editorState?.isOrderedList ? 3 : 2} />
+                </button>
                 <button
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
