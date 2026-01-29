@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import { useDebouncedCallback } from 'use-debounce';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -15,6 +15,13 @@ const Napkin: React.FC = () => {
     const navigate = useNavigate();
     const [title, setTitle] = useState('');
     const [isLoaded, setIsLoaded] = useState(false);
+    const [lastSaved, setLastSaved] = useState<Date | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
+
+    // Sync state with parent layout
+    const { setHeaderState } = useOutletContext<{
+        setHeaderState: (state: any) => void;
+    }>();
 
     // We use a ref to hold the current ID so our auto-save logic always has the latest execution context
     // without needing to be re-created on every render.
@@ -114,6 +121,7 @@ const Napkin: React.FC = () => {
                     setTitle(napkin.title);
                     editor?.commands.setContent(napkin.content);
                 }
+                console.log(napkin?.lastSavedAt);
             } else {
                 // Reset for new napkin
                 setTitle('');
@@ -153,13 +161,20 @@ const Napkin: React.FC = () => {
         napkin.lastSavedAt = new Date().toISOString();
 
         // 4. Persist
-        await storageService.saveNapkin(napkin);
+        setIsSaving(true);
+        try {
+            await storageService.saveNapkin(napkin);
+            setLastSaved(new Date());
+        } finally {
+            setIsSaving(false);
+        }
     }, 1000);
 
     // Trigger save on changes
     useEffect(() => {
         if (!isLoaded || !editor) return;
 
+        setLastSaved(null); // Clear saved status immediately on change
         const content = editor.getHTML();
         saveNapkin(title, content);
 
@@ -170,6 +185,7 @@ const Napkin: React.FC = () => {
         if (!editor || !isLoaded) return;
 
         const handleUpdate = () => {
+            setLastSaved(null); // Clear saved status immediately on change
             saveNapkin(title, editor.getHTML());
         };
 
@@ -183,18 +199,27 @@ const Napkin: React.FC = () => {
     // Allow title changes to trigger save too
     useEffect(() => {
         if (isLoaded && editor) {
+            setLastSaved(null); // Clear saved status immediately on change
             saveNapkin(title, editor.getHTML());
         }
     }, [title, isLoaded]);
 
 
-    // UX Hint Logic
     useEffect(() => {
         if (!title) {
             const timer = setTimeout(() => setShowTitleHint(true), 500);
             return () => clearTimeout(timer);
         } else {
             setShowTitleHint(false);
+        }
+    }, [title]);
+
+    // Auto-expand title textarea
+    useEffect(() => {
+        const textarea = titleRef.current;
+        if (textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = `${textarea.scrollHeight}px`;
         }
     }, [title]);
 
@@ -205,48 +230,61 @@ const Napkin: React.FC = () => {
         }
     };
 
+    useEffect(() => {
+        if (id) {
+            setHeaderState({
+                isSaving,
+                lastSaved,
+                actions: (
+                    <div ref={menuRef} className="relative">
+                        <button
+                            onClick={() => setShowActions(!showActions)}
+                            className="text-primary/40 hover:bg-black/5 hover:text-primary rounded-full p-2 transition-colors"
+                        >
+                            <MoreHorizontal size={20} />
+                        </button>
+
+                        {showActions && (
+                            <div className="bg-surface absolute right-0 mt-2 w-48 origin-top-right rounded-2xl p-1 shadow-2xl ring-1 ring-black/5 backdrop-blur-md animate-in fade-in zoom-in duration-200 z-50">
+                                {!confirmDelete ? (
+                                    <button
+                                        onClick={() => setConfirmDelete(true)}
+                                        className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+                                    >
+                                        <Trash2 size={18} />
+                                        Delete Scribble
+                                    </button>
+                                ) : (
+                                    <div className="p-1">
+                                        <button
+                                            onClick={handleDelete}
+                                            className="mb-1 flex w-full items-center justify-center rounded-xl bg-red-600 px-4 py-3 text-sm font-bold text-white transition-all hover:bg-red-700 active:scale-95 shadow-md"
+                                        >
+                                            Tap again to delete
+                                        </button>
+                                        <button
+                                            onClick={() => setConfirmDelete(false)}
+                                            className="flex w-full items-center justify-center rounded-xl px-4 py-2 text-xs font-medium text-primary/40 hover:bg-black/5"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )
+            });
+        } else {
+            setHeaderState({ isSaving: false, lastSaved: null, actions: null });
+        }
+
+        // Cleanup header state when unmounting
+        return () => setHeaderState({ isSaving: false, lastSaved: null, actions: null });
+    }, [id, isSaving, lastSaved, showActions, confirmDelete, setHeaderState]);
+
     return (
         <div className="relative mx-auto flex h-full w-full max-w-3xl flex-col px-4 pt-4 sm:px-12 md:pt-12">
-            {/* Top right actions */}
-            {id && (
-                <div className="absolute right-4 top-4 z-20 md:right-8 md:top-8" ref={menuRef}>
-                    <button
-                        onClick={() => setShowActions(!showActions)}
-                        className="text-primary/40 hover:bg-black/5 hover:text-primary rounded-full p-2 transition-colors"
-                    >
-                        <MoreHorizontal size={20} />
-                    </button>
-
-                    {showActions && (
-                        <div className="bg-surface absolute right-0 mt-2 w-48 origin-top-right rounded-2xl p-1 shadow-2xl ring-1 ring-black/5 backdrop-blur-md animate-in fade-in zoom-in duration-200">
-                            {!confirmDelete ? (
-                                <button
-                                    onClick={() => setConfirmDelete(true)}
-                                    className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
-                                >
-                                    <Trash2 size={18} />
-                                    Delete Scribble
-                                </button>
-                            ) : (
-                                <div className="p-1">
-                                    <button
-                                        onClick={handleDelete}
-                                        className="mb-1 flex w-full items-center justify-center rounded-xl bg-red-600 px-4 py-3 text-sm font-bold text-white transition-all hover:bg-red-700 active:scale-95 shadow-md"
-                                    >
-                                        Tap again to delete
-                                    </button>
-                                    <button
-                                        onClick={() => setConfirmDelete(false)}
-                                        className="flex w-full items-center justify-center rounded-xl px-4 py-2 text-xs font-medium text-primary/40 hover:bg-black/5"
-                                    >
-                                        Cancel
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-            )}
             {/* Main Content Scrollable Area (Title + Editor) */}
             <div className="flex-1 overflow-y-auto pb-32 no-scrollbar">
                 {/* Title Input Section */}

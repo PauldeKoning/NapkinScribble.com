@@ -64,7 +64,7 @@ export class NapkinService implements NapkinStorage {
 
         const result = Array.from(combined.values());
         // Sort by createdAt descending
-        return result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        return result.sort((a, b) => new Date(b.lastSavedAt).getTime() - new Date(a.lastSavedAt).getTime());
     }
 
     async getNapkin(id: string): Promise<Napkin | null> {
