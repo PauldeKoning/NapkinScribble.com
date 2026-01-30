@@ -8,7 +8,7 @@ interface UseNapkinLoaderOptions {
     editor: Editor | null;
     storageService: NapkinService;
     isInitialLoadRef: React.MutableRefObject<boolean>;
-    onDataLoaded: (title: string, content: string) => void;
+    onDataLoaded: (title: string, content: string, isPublic?: boolean, ownerId?: string) => void;
 }
 
 interface UseNapkinLoaderReturn {
@@ -33,14 +33,14 @@ export function useNapkinLoader({
             if (napkinId) {
                 const napkin = await storageService.getNapkin(napkinId);
                 if (napkin) {
-                    onDataLoaded(napkin.title, napkin.content);
+                    onDataLoaded(napkin.title, napkin.content, napkin.isPublic, napkin.userId);
 
                     if (editor && napkin.content !== editor.getHTML()) {
                         editor.commands.setContent(napkin.content);
                     }
                 }
             } else {
-                onDataLoaded('', '');
+                onDataLoaded('', '', false);
                 if (editor) {
                     editor.commands.setContent('');
                 }

@@ -12,5 +12,6 @@ export interface Napkin {
     storage: StorageLocation;
     createdAt: string; // ISO string
     lastSavedAt: string; // ISO string
+    isPublic?: boolean; // Optional: Public link sharing
     userId?: string; // Optional: User ID for Firebase ownership
 }

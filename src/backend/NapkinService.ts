@@ -30,6 +30,16 @@ export class NapkinService implements NapkinStorage {
     }
 
     async saveNapkin(napkin: Napkin): Promise<Napkin> {
+        if (napkin.isPublic) {
+            if (!this.isAuthenticated) {
+                throw Error('Trying to save public napkin without auth');
+            }
+
+            if (auth.currentUser?.uid !== napkin.userId) {
+                throw Error('Trying to save public napkin. But not right user.');
+            }
+        }
+
         // Always save to local for speed and offline support
         const localNapkin = await this.local.saveNapkin(napkin);
 
@@ -117,7 +127,7 @@ export class NapkinService implements NapkinStorage {
         // Fetch from both in parallel
         const [localNapkin, cloudNapkin] = await Promise.all([
             this.local.getNapkin(id),
-            this.isAuthenticated ? this.cloud.getNapkin(id).catch(() => null) : Promise.resolve(null)
+            this.cloud.getNapkin(id).catch(() => null),
         ]);
 
         if (!localNapkin && !cloudNapkin) return null;

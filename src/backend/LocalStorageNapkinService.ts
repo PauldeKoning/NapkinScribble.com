@@ -1,14 +1,19 @@
+import { auth } from '../firebase';
 import { StorageLocation, type Napkin } from '../types';
 import type { NapkinStorage } from './NapkinStorage';
 
 const STORAGE_KEY = 'napkin_scribbles';
 
 export class LocalStorageNapkinService implements NapkinStorage {
+
+    private get isAuthenticated() {
+        return !!auth.currentUser;
+    }
+
     async saveNapkin(napkin: Napkin): Promise<Napkin> {
         console.log('Saving local napkin for: ' + napkin.title);
         const napkins = await this.getNapkins();
         const index = napkins.findIndex((n) => n.id === napkin.id);
-        console.log('Index/title', index, napkin.title);
 
         if (index >= 0) {
             napkins[index] = napkin;

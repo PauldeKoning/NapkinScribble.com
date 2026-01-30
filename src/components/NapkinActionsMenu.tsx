@@ -1,14 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MoreHorizontal, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Trash2, Globe, ShieldOff } from 'lucide-react';
 import { NapkinService } from '../backend/NapkinService';
 
 interface NapkinActionsMenuProps {
     napkinId: string;
+    isPublic: boolean;
     storageService: NapkinService;
+    onShare?: () => void;
 }
 
-export const NapkinActionsMenu: React.FC<NapkinActionsMenuProps> = ({ napkinId, storageService }) => {
+export const NapkinActionsMenu: React.FC<NapkinActionsMenuProps> = ({ napkinId, isPublic, storageService, onShare }) => {
     const navigate = useNavigate();
     const [showActions, setShowActions] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
@@ -50,13 +52,36 @@ export const NapkinActionsMenu: React.FC<NapkinActionsMenuProps> = ({ napkinId, 
             {showActions && (
                 <div className="bg-surface absolute right-0 mt-2 w-48 origin-top-right rounded-2xl p-1 shadow-2xl ring-1 ring-black/5 backdrop-blur-md animate-in fade-in zoom-in duration-200 z-50">
                     {!confirmDelete ? (
-                        <button
-                            onClick={() => setConfirmDelete(true)}
-                            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
-                        >
-                            <Trash2 size={18} />
-                            Delete Scribble
-                        </button>
+                        <>
+                            {onShare && (
+                                <button
+                                    onClick={() => {
+                                        onShare();
+                                        setShowActions(false);
+                                    }}
+                                    className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-primary/80 transition-colors hover:bg-black/5"
+                                >
+                                    {isPublic ? (
+                                        <>
+                                            <ShieldOff size={18} className="text-primary/60" />
+                                            Stop Sharing
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Globe size={18} className="text-accent" />
+                                            Share Scribble
+                                        </>
+                                    )}
+                                </button>
+                            )}
+                            <button
+                                onClick={() => setConfirmDelete(true)}
+                                className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+                            >
+                                <Trash2 size={18} />
+                                Delete Scribble
+                            </button>
+                        </>
                     ) : (
                         <div className="p-1">
                             <button

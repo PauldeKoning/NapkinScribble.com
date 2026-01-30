@@ -13,10 +13,16 @@ import { useAutoSave } from '../hooks/useAutoSave';
 import { useNapkinLoader } from '../hooks/useNapkinLoader';
 import { NapkinActionsMenu } from './NapkinActionsMenu';
 import { NapkinToolbar } from './NapkinToolbar';
+import { useAuth } from '../contexts/AuthContext';
 
 const Napkin: React.FC = () => {
+    const { user } = useAuth();
     const { id } = useParams<{ id: string }>();
     const [title, setTitle] = useState('');
+    const [isPublic, setIsPublic] = useState(false);
+    const [ownerId, setOwnerId] = useState<string | undefined>(undefined);
+
+    const isReadOnly = isPublic && user?.uid !== ownerId;
 
     // Dynamic document title
     useEffect(() => {
@@ -68,8 +74,10 @@ const Napkin: React.FC = () => {
         },
     });
 
-    const onDataLoaded = useCallback((newTitle: string, _newContent: string) => {
+    const onDataLoaded = useCallback((newTitle: string, _newContent: string, isPublicNew?: boolean, ownerIdNew?: string) => {
         setTitle(newTitle);
+        setIsPublic(!!isPublicNew);
+        setOwnerId(ownerIdNew);
     }, []);
 
     const { isLoaded } = useNapkinLoader({
@@ -81,16 +89,28 @@ const Napkin: React.FC = () => {
     });
 
     // Auto-save hook (after editor is defined and isLoaded is available)
-    const { isSaving, lastSaved } = useAutoSave({
+    const { isSaving, lastSaved, saveNow } = useAutoSave({
         napkinId: id,
         title,
         editor,
         isLoaded,
+        isPublic,
+        isReadOnly,
         storageService,
         isInitialLoadRef,
     });
 
+    const handleShare = useCallback(() => {
+        setIsPublic(prev => {
+            return !prev;
+        });
+    }, [id, saveNow]);
 
+    useEffect(() => {
+        if (editor) {
+            editor.setEditable(!isReadOnly);
+        }
+    }, [editor, isReadOnly]);
 
     // Title hint animation
     useEffect(() => {
@@ -119,7 +139,7 @@ const Napkin: React.FC = () => {
             setHeaderState({
                 isSaving,
                 lastSaved,
-                actions: <NapkinActionsMenu napkinId={id} storageService={storageService} />
+                actions: !isReadOnly ? <NapkinActionsMenu napkinId={id} isPublic={isPublic} storageService={storageService} onShare={user ? handleShare : undefined} /> : null
             });
         } else {
             setHeaderState({ isSaving: false, lastSaved: null, actions: null });
@@ -127,7 +147,7 @@ const Napkin: React.FC = () => {
 
         // Cleanup header state when unmounting
         return () => setHeaderState({ isSaving: false, lastSaved: null, actions: null });
-    }, [id, isSaving, lastSaved, setHeaderState, storageService]);
+    }, [id, isSaving, lastSaved, setHeaderState, storageService, isPublic, handleShare, user]);
 
     if (!isLoaded) {
         return (
@@ -155,8 +175,12 @@ const Napkin: React.FC = () => {
                             }
                         }}
                         placeholder="Name your napkin..."
-                        className="placeholder:text-primary/30 w-full bg-transparent text-3xl font-bold text-primary focus:outline-none sm:text-5xl resize-none overflow-hidden block"
-                        autoFocus
+                        className={clsx(
+                            "placeholder:text-primary/30 w-full bg-transparent text-3xl font-bold text-primary focus:outline-none sm:text-5xl resize-none overflow-hidden block",
+                            isReadOnly && "pointer-events-none select-none"
+                        )}
+                        readOnly={isReadOnly}
+                        autoFocus={!isReadOnly}
                         onFocus={() => {
                             setTitleFocused(true);
                             if (!title) setShowTitleHint(true);
@@ -171,7 +195,7 @@ const Napkin: React.FC = () => {
                     <div
                         className={clsx(
                             "pointer-events-none absolute -bottom-4 left-1 text-sm font-medium text-accent transition-all duration-500",
-                            showTitleHint && !title ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0"
+                            showTitleHint && !title && !isReadOnly ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0"
                         )}
                     >
                         Give your idea a name to save it
@@ -182,7 +206,7 @@ const Napkin: React.FC = () => {
             </div>
 
             {/* Formatting Toolbar (Sticky Bottom) */}
-            <NapkinToolbar editor={editor} isVisible={!titleFocused} />
+            {!isReadOnly && <NapkinToolbar editor={editor} isVisible={!titleFocused} />}
 
         </div>
     );

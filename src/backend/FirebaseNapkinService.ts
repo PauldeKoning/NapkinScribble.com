@@ -60,18 +60,11 @@ export class FirebaseNapkinService implements NapkinStorage {
     }
 
     async getNapkin(id: string): Promise<Napkin | null> {
-        if (!this.userId) return null;
-
         const docRef = doc(db, this.collectionName, id);
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
-            const data = docSnap.data() as Napkin;
-            // Security check: ensure the napkin belongs to the current user
-            // (Standard precaution even with Firestore rules)
-            if (data.userId === this.userId) {
-                return data;
-            }
+            return docSnap.data() as Napkin;
         }
 
         return null;

@@ -10,6 +10,8 @@ interface UseAutoSaveOptions {
     title: string;
     editor: Editor | null;
     isLoaded: boolean;
+    isPublic: boolean;
+    isReadOnly?: boolean;
     storageService: NapkinService;
     isInitialLoadRef: React.MutableRefObject<boolean>;
 }
@@ -25,6 +27,8 @@ export function useAutoSave({
     title,
     editor,
     isLoaded,
+    isPublic,
+    isReadOnly = false,
     storageService,
     isInitialLoadRef,
 }: UseAutoSaveOptions): UseAutoSaveReturn {
@@ -40,7 +44,8 @@ export function useAutoSave({
 
     // Core save function
     const saveNapkin = useDebouncedCallback(
-        async (currentTitle: string, currentContent: string) => {
+        async (currentTitle: string, currentContent: string, currentIsPublic: boolean) => {
+            if (isReadOnly) return;
             console.log('Saving napkin...');
 
             // Don't save if everything is empty
@@ -62,6 +67,7 @@ export function useAutoSave({
             // Apply updates
             napkin.title = currentTitle;
             napkin.content = currentContent;
+            napkin.isPublic = currentIsPublic;
             napkin.lastSavedAt = new Date().toISOString();
 
             // Persist
@@ -82,8 +88,8 @@ export function useAutoSave({
         if (!isLoaded || !editor || isInitialLoadRef.current) return;
 
         setLastSaved(null);
-        saveNapkin(title, editor.getHTML());
-    }, [title, isLoaded, editor, saveNapkin]);
+        saveNapkin(title, editor.getHTML(), isPublic);
+    }, [title, isLoaded, isPublic, editor, saveNapkin]);
 
     // Trigger save on editor content changes
     useEffect(() => {
@@ -93,7 +99,7 @@ export function useAutoSave({
             if (isInitialLoadRef.current) return;
 
             setLastSaved(null);
-            saveNapkin(title, editor.getHTML());
+            saveNapkin(title, editor.getHTML(), isPublic);
         };
 
         editor.on('update', handleUpdate);
@@ -101,7 +107,7 @@ export function useAutoSave({
         return () => {
             editor.off('update', handleUpdate);
         };
-    }, [editor, title, isLoaded, saveNapkin]);
+    }, [editor, title, isLoaded, isPublic, saveNapkin]);
 
     // Cleanup: Cancel pending saves when switching napkins
     useEffect(() => {
@@ -112,10 +118,10 @@ export function useAutoSave({
 
     const saveNow = useCallback(() => {
         if (editor) {
-            saveNapkin(title, editor.getHTML());
+            saveNapkin(title, editor.getHTML(), isPublic);
             saveNapkin.flush();
         }
-    }, [title, editor, saveNapkin]);
+    }, [title, editor, isPublic, saveNapkin]);
 
     return {
         isSaving,
